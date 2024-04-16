@@ -1,5 +1,6 @@
 import requests
 from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 from openpyxl.utils import get_column_letter
 
 # Definições
@@ -22,16 +23,12 @@ def fetch_pipefy_data(pipe_id):
     query = f"""
     query {{
       pipe(id: "{pipe_id}") {{
-        id
-        name
         phases {{
-          id
           name
           cards {{
             edges {{
               node {{
-                id
-                title
+                title  
                 fields {{
                   name
                   value
@@ -43,6 +40,7 @@ def fetch_pipefy_data(pipe_id):
       }}
     }}
     """
+
 
     headers = {'Authorization': f'Bearer {PIPEFY_API_TOKEN}'}
     print(f"Buscando dados para o pipe ID: {pipe_id}")
@@ -60,37 +58,56 @@ def update_excel(wb, data, sheet_name):
         ws = wb.create_sheet(title=sheet_name)
     print(f"Aba '{sheet_name}' selecionada ou criada.")
 
-    # Adicionando os cabeçalhos
-    for col_num, header in enumerate(HEADERS, 1):
-        ws.cell(row=1, column=col_num, value=header)
+    # Lista de títulos para os cabeçalhos conforme especificado
+    headers = [
+        "Período:", "NPS", "Grupo minoritário?", "Cargo:",
+        "Sinto-me envolvido com o trabalho que faço.",
+        "Estou entusiasmado com meu trabalho.",
+        "Em meu trabalho, sinto-me cheio de energia.",
+        "Eu entendo como meu trabalho contribui para o alcance das metas e objetivos da empresa.",
+        "Eu sinto que faço a diferença no meu time.",
+        "Eu sinto que, se eu cometer um erro, isso não se voltará contra mim.",
+        "Sinto que a cultura da UCJ está alinhada com as minhas crenças e valores.",
+        "A UCJ possui lideranças com as quais me identifico.",
+        "Sinto que a minha liderança direta se preocupa comigo como pessoa.",
+        "Sinto que a minha liderança direta constrói um ambiente positivo, ou seja, temos uma comunicação aberta e transparente, falamos de dificuldades e temos uma cultura de feedbacks constantes.",
+        "Eu estou satisfeito em relação ao tempo que dedico para o meu trabalho, meus estudos, minha família, meus amigos e minha saúde.",
+        "Eu sinto que a minha liderança direta encoraja e apoia meu desenvolvimento.",
+        "Sinto que tenho voz ativa opinar e fazer acontecer as transformações em que acredito.",
+        "Sinto que sou comunicado (a) das informações relevantes para o meu trabalho e sobre assuntos gerais relevantes na empresa.",
+        "Sinto que o ambiente em que trabalho colabora para a minha produtividade.",
+        "O que motivou sua resposta.",
+        "NPS produtos", "Comente sobre o que motivou essa resposta.",
+        "O que podemos fazer para melhorar enquanto empresa?", "Qual(is)?"
+    ]
 
-    # Adicionando os dados
+    # Aplicando os cabeçalhos e seus estilos
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num, value=header)
+        cell.font = Font(name='Arial', size=11, bold=True)
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = Border(left=Side(style='thin'), right=Side(style='thin'),
+                             top=Side(style='thin'), bottom=Side(style='thin'))
+
+    ws.auto_filter.ref = f"A1:{get_column_letter(len(headers))}1"
+
     row_num = 2
     for phase in data['data']['pipe']['phases']:
-        for card_edge in phase['cards']['edges']:
-            card = card_edge['node']
-            for field in card['fields']:
-                ws.cell(row=row_num, column=1, value=data['data']['pipe']['id'])
-                ws.cell(row=row_num, column=2, value=data['data']['pipe']['name'])
-                ws.cell(row=row_num, column=3, value=phase['name'])
-                ws.cell(row=row_num, column=4, value=card['id'])
-                ws.cell(row=row_num, column=5, value=card['title'])
-                ws.cell(row=row_num, column=6, value=field['name'])
-                ws.cell(row=row_num, column=7, value=field['value'])
-                row_num += 1
+        if phase['name'] != "Caixa de entrada":  # Filtra a fase "Caixa de Entrada"
+            for card_edge in phase['cards']['edges']:
+                card = card_edge['node']
+                for field in card['fields']:
+                    ws.cell(row=row_num, column=1, value=phase['name'])
+                    ws.cell(row=row_num, column=2, value=card['title'])
+                    ws.cell(row=row_num, column=3, value=field['name'])
+                    ws.cell(row=row_num, column=4, value=field['value'])
+                    row_num += 1
 
-    # Ajustando a largura das colunas
+    # Ajuste das colunas conforme anteriormente
     for col in ws.columns:
-        max_length = 0
-        column = col[0].column  # Get the column name
-        for cell in col:
-            try:  # Necessary to avoid error on empty cells
-                if len(str(cell.value)) > max_length:
-                    max_length = len(cell.value)
-            except:
-                pass
-        adjusted_width = (max_length + 2)
-        ws.column_dimensions[get_column_letter(column)].width = adjusted_width
+        max_length = max((len(str(cell.value)) if cell.value is not None else 0 for cell in col), default=0)
+        adjusted_width = max_length + 2
+        ws.column_dimensions[get_column_letter(col[0].column)].width = adjusted_width
 
     wb.save(EXCEL_FILENAME)
     print(f'Arquivo "{EXCEL_FILENAME}" salvo com sucesso.')
