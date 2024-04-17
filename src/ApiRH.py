@@ -56,6 +56,7 @@ def update_excel(wb, data, sheet_name):
         ws.delete_rows(2, ws.max_row)
     else:
         ws = wb.create_sheet(title=sheet_name)
+
     print(f"Aba '{sheet_name}' selecionada ou criada.")
 
     # Lista de títulos para os cabeçalhos conforme especificado
@@ -92,22 +93,71 @@ def update_excel(wb, data, sheet_name):
     ws.auto_filter.ref = f"A1:{get_column_letter(len(headers))}1"
 
     row_num = 2
+
+    # Estilo de fonte para o restante das células
+    normal_font = Font(name='Arial', size=11, bold=False)
+    alignment_bottom = Alignment(vertical='bottom')
+
+    index_col_t = headers.index("O que motivou sua resposta.") + 1
+    index_col_v = headers.index("Comente sobre o que motivou essa resposta.") + 1
+    index_col_w = headers.index("O que podemos fazer para melhorar enquanto empresa?") + 1
+
+
     for phase in data['data']['pipe']['phases']:
-        if phase['name'] != "Caixa de entrada":  # Filtra a fase "Caixa de Entrada"
+        if phase['name'] not in ["Caixa de entrada", "Concluído"]:
             for card_edge in phase['cards']['edges']:
                 card = card_edge['node']
+                field_values = {header: "" for header in headers}  # Inicializa todos os campos com string vazia
+                field_values["Período:"] = phase['name']
+                field_values["NPS"] = card['title']
+
                 for field in card['fields']:
-                    ws.cell(row=row_num, column=1, value=phase['name'])
-                    ws.cell(row=row_num, column=2, value=card['title'])
-                    ws.cell(row=row_num, column=3, value=field['name'])
-                    ws.cell(row=row_num, column=4, value=field['value'])
-                    row_num += 1
+                    header_name = next((h for h in headers if h.endswith(field['name'] + ":")), None)
+                    if field['name'] in headers:
+                        field_values[field['name']] = field['value']  # Preenche os valores onde o cabeçalho coincide com o nome do campo
+                    elif header_name:
+                        field_values[header_name] = field['value']
+                    elif field['name'] == "Você pertence a algum grupo minoritário?":
+                        field_values["Grupo minoritário?"] = field['value']
+                    elif field['name'] == "Você é:":
+                        field_values["Cargo:"] = field['value']
+                    elif field['name'] == "Em uma escala de 0 a 10, o quanto você recomendaria os produtos da UCJ para amigos ou familiares?":
+                        field_values["NPS produtos"] = field['value']
+                    elif field['name'] == "Comente sobre o que motivou sua resposta.":
+                        field_values["O que motivou sua resposta."] = field['value']
+                # Preenche a linha com os valores coletados
+                for col_num, header in enumerate(headers, 1):
+                    cell = ws.cell(row=row_num, column=col_num, value=field_values[header])
+                    cell.font = normal_font
+                    cell.alignment = alignment_bottom
+                    if col_num in [index_col_t, index_col_v, index_col_w]:
+                        cell.alignment = Alignment(wrap_text=True)  # Aplica quebra de texto nas colunas específicas
+
+
+                row_num += 1  # Incrementa a linha após preencher todos os campos
 
     # Ajuste das colunas conforme anteriormente
-    for col in ws.columns:
-        max_length = max((len(str(cell.value)) if cell.value is not None else 0 for cell in col), default=0)
-        adjusted_width = max_length + 2
-        ws.column_dimensions[get_column_letter(col[0].column)].width = adjusted_width
+        for col in ws.columns:
+            max_length = max((len(str(cell.value)) if cell.value is not None else 0 for cell in col), default=0)
+            adjusted_width = max_length + 2
+            ws.column_dimensions[get_column_letter(col[0].column)].width = adjusted_width
+    
+    standard_width = 8.43
+    for col in range(5, 20):  # Colunas E(5) até S(19)
+        ws.column_dimensions[get_column_letter(col)].width = standard_width
+
+    column_t_index = headers.index("O que motivou sua resposta.") + 1  # Adjust if the header index changes
+    t_header_value = ws.cell(row=1, column=column_t_index).value
+    ws.column_dimensions[get_column_letter(column_t_index)].width = len(t_header_value) + 2
+
+    column_t_index = headers.index("Comente sobre o que motivou essa resposta.") + 1  # Adjust if the header index changes
+    t_header_value = ws.cell(row=1, column=column_t_index).value
+    ws.column_dimensions[get_column_letter(column_t_index)].width = len(t_header_value) + 2
+    
+    column_t_index = headers.index("O que podemos fazer para melhorar enquanto empresa?") + 1  # Adjust if the header index changes
+    t_header_value = ws.cell(row=1, column=column_t_index).value
+    ws.column_dimensions[get_column_letter(column_t_index)].width = len(t_header_value) + 2
+
 
     wb.save(EXCEL_FILENAME)
     print(f'Arquivo "{EXCEL_FILENAME}" salvo com sucesso.')
