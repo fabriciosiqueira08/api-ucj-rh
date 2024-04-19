@@ -8,11 +8,15 @@ PIPEFY_API_TOKEN = "eyJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJQaXBlZnkiLCJpYXQiOjE3MTE3MTY
 PIPEFY_GRAPHQL_ENDPOINT = 'https://api.pipefy.com/graphql'
 PIPE_TO_FILE = {
     'RH - E-NPS': ('[DRH] ENPS.xlsx', 'Banco de dados'),
+    'RH - Matriz de Cursos': ('[DRH] Matriz de Cursos.xlsx', 'Banco de dados')
+    #'RH - Painel Controle Membros': ('[DRH] Painel Controle Membros.xlsx', 'Banco de dados'),
 }
 
 # IDs dos Pipes 
 PIPE_IDS = {
     'RH - E-NPS': '301823995',
+    'RH - Matriz de Cursos': '301682389'
+    #'RH - Painel Controle Membros': '301654957'
 }
 
 # Função para consultar os dados do Pipefy
@@ -44,8 +48,14 @@ def fetch_pipefy_data(pipe_id):
     data = response.json()
     return data 
 
+def clean_value(value):
+    if isinstance(value, str) and value.startswith("[\"") and value.endswith("\"]"):
+        # Assume que há apenas um item na lista e remove os caracteres indesejados
+        return value[2:-2]  # Remove os dois primeiros e os dois últimos caracteres
+    return value
+
 # Função para criar/atualizar o arquivo do Excel com os dados do Pipefy
-def update_excel(wb, data, sheet_name):
+def update_excel_e_nps(wb, data, sheet_name):
     if sheet_name in wb.sheetnames:
         ws = wb[sheet_name]
     else:
@@ -149,7 +159,7 @@ def update_excel(wb, data, sheet_name):
                         cell.alignment = Alignment(wrap_text=True)  # Aplica quebra de texto nas colunas específicas
 
 
-                row_num += 1  # Incrementa a linha após preencher todos os campos
+                row_num += 1 
 
     # Ajuste das colunas conforme anteriormente
         for col in ws.columns:
@@ -181,11 +191,85 @@ def update_excel(wb, data, sheet_name):
 
     print(f"Dados atualizados na aba '{sheet_name}'.")
 
+def update_excel_matriz_cursos(wb, data, sheet_name):
+    if sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+    else:
+        ws = wb.create_sheet(title=sheet_name)
 
+    # Lista de títulos para os cabeçalhos conforme especificado
+    headers = [
+        "Membro", "Qual o tipo de curso?", "Cargo atual na empresa", "Carga horária do curso", "Ajudou a desenvolver minhas soft skills", 
+        "Contribuiu para o meu desenvolvimento pessoal", "Contribuiu para o meu desenvolvimento profissional",
+        "Facilita meu trabalho dentro da empresa", "Fez com que meus resultados na UCJ fossem alavancados",
+        "Me ajudou nas atividades que desenvolvo fora da UCJ", "Me ajudou nas atividades que desenvolvo na UCJ",
+        "Pode ser utilizado no dia a dia do meu projeto", "Pode ser utilizado no meu dia a dia fora da empresa", 
+        "Potencializou meu desempenho de modo geral", "Área do curso", "Nome da Instuição em que realizou o curso", "Nome do curso realizado" 
+    ]
+
+    # Aplicando os cabeçalhos e seus estilos
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num, value=header)
+        cell.font = Font(name='Arial', size=10, bold=True)
+        cell.alignment = Alignment(vertical='bottom')
+        cell.border = Border(left=Side(style='thin'), right=Side(style='thin'),
+                             top=Side(style='thin'), bottom=Side(style='thin'))
+
+    row_num = 2
+
+    # Estilo de fonte para o restante das células
+    normal_font = Font(name='Arial', size=10, bold=False)
+    alignment_bottom = Alignment(vertical='bottom')
+
+    for phase in data['data']['pipe']['phases']:
+        # Checa se a fase é 'In-Company'
+        if phase['name'] == "In-Company":
+            for card_edge in phase['cards']['edges']:
+                card = card_edge['node']
+
+                # Inicializa todos os campos com string vazia
+                field_values = {header: "" for header in headers}
+
+                # Atribui o título do card diretamente à coluna 'Membro'
+                field_values["Membro"] = card["title"]
+
+                # Preenche os outros campos com os valores correspondentes
+                for field in card['fields']:
+                    if field['name'] in headers:
+                        try: 
+                            # Se o valor for numérico, converte para o tipo numérico correspondente
+                            field_values[field['name']] = int(field['value']) if field['value'].isdigit() else float(field['value'])
+                        except ValueError:
+                            # Caso contrário, limpa e atribui o valor como string
+                            field_values[field['name']] = clean_value(field['value'])
+
+                # Preenche a linha com os valores coletados
+                for col_num, header in enumerate(headers, 1):
+                    cell = ws.cell(row=row_num, column=col_num, value=field_values[header])
+                    cell.font = normal_font
+                    cell.alignment = alignment_bottom
+
+                row_num += 1
+
+    # Ajuste das colunas conforme anteriormente
+    for col in ws.columns:
+        max_length = max((len(str(cell.value)) if cell.value is not None else 0 for cell in col), default=0)
+        adjusted_width = max_length + 2
+        ws.column_dimensions[get_column_letter(col[0].column)].width = adjusted_width
+
+    print(f"Dados atualizados na aba '{sheet_name}'.")
+    
 
 
 # Função principal para executar o script
 def main():
+    # Mapeamento de pipes para suas funções de atualização específicas
+    update_functions = {
+        'RH - E-NPS': update_excel_e_nps,
+        'RH - Matriz de Cursos': update_excel_matriz_cursos,
+        #'RH - Painel Controle Membros': update_excel_painel_controle_membros,
+    }
+
     for pipe_name, (filename, sheet_name) in PIPE_TO_FILE.items():
         print(f"Iniciando a consulta dos dados do Pipefy para: {pipe_name}")
         data = fetch_pipefy_data(PIPE_IDS[pipe_name])
@@ -204,7 +288,10 @@ def main():
                 print(f"Arquivo '{filename}' não encontrado, criando novo arquivo.")
                 wb.remove(wb.active)  # Remover a aba padrão vazia
 
-            update_excel(wb, data, sheet_name)  # Passando corretamente o nome da aba
+            # Chamada da função de atualização específica
+            update_function = update_functions[pipe_name]
+            update_function(wb, data, sheet_name)
+
             wb.save(filename)
             print(f'Arquivo "{filename}" salvo com sucesso com a aba atualizada.')
 
