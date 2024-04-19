@@ -1,11 +1,13 @@
-import requests
+import requests, os
+from dotenv import load_dotenv
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
 # Definições
-PIPEFY_API_TOKEN = "eyJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJQaXBlZnkiLCJpYXQiOjE3MTE3MTY3MzgsImp0aSI6IjMwYzBiNjMzLTg5ZWEtNDM0ZC1hODMxLTZkYjc3OTM0MTBkNiIsInN1YiI6MjEyODA2LCJ1c2VyIjp7ImlkIjoyMTI4MDYsImVtYWlsIjoicmhAdWNqLmNvbS5iciIsImFwcGxpY2F0aW9uIjozMDAzMzgyMzIsInNjb3BlcyI6W119LCJpbnRlcmZhY2VfdXVpZCI6bnVsbH0.79e7athW43b4WrBvWOsxa4wsIEUbQlVRzdU6rlZ4pmjDB2ABiv8sOyPu0jv18Gj5HCkue4QIMavqAqE2CnMHiQ"
-PIPEFY_GRAPHQL_ENDPOINT = 'https://api.pipefy.com/graphql'
+load_dotenv()
+PIPEFY_API_TOKEN = os.getenv('PIPEFY_API_TOKEN')
+PIPEFY_GRAPHQL_ENDPOINT = os.getenv('PIPEFY_GRAPHQL_ENDPOINT')
 PIPE_TO_FILE = {
     'RH - E-NPS': ('[DRH] ENPS.xlsx', 'Banco de dados'),
     'RH - Matriz de Cursos': ('[DRH] Matriz de Cursos.xlsx', 'Banco de dados')

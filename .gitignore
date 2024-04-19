@@ -1,4 +1,5 @@
 teste.py
 *.xlsx
 ConsultaAPI.py
+.env
 
