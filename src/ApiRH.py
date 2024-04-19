@@ -22,21 +22,28 @@ PIPE_IDS = {
 }
 
 # Função para consultar os dados do Pipefy
-def fetch_pipefy_data(pipe_id):
+def fetch_pipefy_data(pipe_id, cursor=None, page_size=30,):
+    # Cursor clause to handle pagination
+    cursor_clause = f', after: "{cursor}"' if cursor else ""
+    
     query = f"""
     query {{
       pipe(id: "{pipe_id}") {{
         phases {{
           name
-          cards {{
+          cards(first: {page_size}{cursor_clause}) {{
             edges {{
               node {{
-                title  
+                title
                 fields {{
                   name
                   value
                 }}
               }}
+            }}
+            pageInfo {{
+              hasNextPage
+              endCursor
             }}
           }}
         }}
@@ -44,60 +51,46 @@ def fetch_pipefy_data(pipe_id):
     }}
     """
 
-
     headers = {'Authorization': f'Bearer {PIPEFY_API_TOKEN}'}
     response = requests.post(PIPEFY_GRAPHQL_ENDPOINT, json={'query': query}, headers=headers)
     data = response.json()
-    return data 
+    return data
 
-def clean_value(value):
-    if isinstance(value, str) and value.startswith("[\"") and value.endswith("\"]"):
-        # Assume que há apenas um item na lista e remove os caracteres indesejados
-        return value[2:-2]  # Remove os dois primeiros e os dois últimos caracteres
-    return value
 
-# Função para criar/atualizar o arquivo do Excel com os dados do Pipefy
-def update_excel_e_nps(wb, data, sheet_name):
-    if sheet_name in wb.sheetnames:
-        ws = wb[sheet_name]
-    else:
-        ws = wb.create_sheet(title=sheet_name)
+def fetch_all_cards(pipe_id):
+    all_phases = []
+    initial_data = fetch_pipefy_data(pipe_id)  # Esta função precisa tratar corretamente o cursor inicial como None
 
-    # Lista de títulos para os cabeçalhos conforme especificado
-    headers = [
-        "Período:", "NPS", "Grupo minoritário?", "Cargo:",
-        "Sinto-me envolvido com o trabalho que faço.",
-        "Estou entusiasmado com meu trabalho.",
-        "Em meu trabalho, sinto-me cheio de energia.",
-        "Eu entendo como meu trabalho contribui para o alcance das metas e objetivos da empresa.",
-        "Eu sinto que faço a diferença no meu time.",
-        "Eu sinto que, se eu cometer um erro, isso não se voltará contra mim.",
-        "Sinto que a cultura da UCJ está alinhada com as minhas crenças e valores.",
-        "A UCJ possui lideranças com as quais me identifico.",
-        "Sinto que a minha liderança direta se preocupa comigo como pessoa.",
-        "Sinto que a minha liderança direta constrói um ambiente positivo, ou seja, temos uma comunicação aberta e transparente, falamos de dificuldades e temos uma cultura de feedbacks constantes.",
-        "Eu estou satisfeito em relação ao tempo que dedico para o meu trabalho, meus estudos, minha família, meus amigos e minha saúde.",
-        "Eu sinto que a minha liderança direta encoraja e apoia meu desenvolvimento.",
-        "Sinto que tenho voz ativa opinar e fazer acontecer as transformações em que acredito.",
-        "Sinto que sou comunicado (a) das informações relevantes para o meu trabalho e sobre assuntos gerais relevantes na empresa.",
-        "Sinto que o ambiente em que trabalho colabora para a minha produtividade.",
-        "O que motivou sua resposta.",
-        "NPS produtos", "Comente sobre o que motivou essa resposta.",
-        "O que podemos fazer para melhorar enquanto empresa?", "Qual(is)?"
-    ]
+    for phase_data in initial_data['data']['pipe']['phases']:
 
-    # Aplicando os cabeçalhos e seus estilos
-    for col_num, header in enumerate(headers, 1):
-        cell = ws.cell(row=1, column=col_num, value=header)
-        cell.font = Font(name='Arial', size=11, bold=True)
-        cell.alignment = Alignment(horizontal='center', vertical='center')
-        cell.border = Border(left=Side(style='thin'), right=Side(style='thin'),
-                             top=Side(style='thin'), bottom=Side(style='thin'))
+        if phase_data['name'] == "Histórico":
+            continue  # Pula a fase "Histórico"
 
-    ws.auto_filter.ref = f"A1:{get_column_letter(len(headers))}1"
+        phase = phase_data
+        cards = phase_data['cards']['edges']
+        pageInfo = phase_data['cards']['pageInfo']
+        cursor = pageInfo['endCursor']
 
-    row_num = 2
+        # Assegurar que a fase atual seja corretamente paginada
+        while pageInfo['hasNextPage']:
+            more_data = fetch_pipefy_data(pipe_id, cursor)  # Adicionar parâmetro para fase
+            more_phase_data = next((p for p in more_data['data']['pipe']['phases'] if p['name'] == phase['name']), None)
+            if more_phase_data:
+                more_cards = more_phase_data['cards']['edges']
+                cards.extend(more_cards)
+                pageInfo = more_phase_data['cards']['pageInfo']
+                cursor = pageInfo['endCursor']
+            else:
+                break  # Interrompe se a fase específica não for encontrada
 
+        phase['cards']['edges'] = cards
+        all_phases.append(phase)
+        print(f"Fase '{phase['name']}' processada com {len(cards)} cartões.")
+
+    return all_phases
+
+
+def process_phases_nps(all_phases, headers, ws, row_num):
     # Estilo de fonte para o restante das células
     normal_font = Font(name='Arial', size=11, bold=False)
     alignment_bottom = Alignment(vertical='bottom')
@@ -107,7 +100,7 @@ def update_excel_e_nps(wb, data, sheet_name):
     index_col_w = headers.index("O que podemos fazer para melhorar enquanto empresa?") + 1
 
 
-    for phase in data['data']['pipe']['phases']:
+    for phase in all_phases:
         if "Tri" in phase['name']:
             num_trimestre = phase['name'].split()[0]  # Assume que o formato é "X° Tri YYYY"
             formatted_name = f"{num_trimestre} Trimestre"
@@ -163,11 +156,57 @@ def update_excel_e_nps(wb, data, sheet_name):
 
                 row_num += 1 
 
+    return ws, row_num
+
+
+# Função para criar/atualizar o arquivo do Excel com os dados do Pipefy
+def update_excel_e_nps(wb, all_phases, sheet_name):
+    if sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+    else:
+        ws = wb.create_sheet(title=sheet_name)
+
+    # Lista de títulos para os cabeçalhos conforme especificado
+    headers = [
+        "Período:", "NPS", "Grupo minoritário?", "Cargo:",
+        "Sinto-me envolvido com o trabalho que faço.",
+        "Estou entusiasmado com meu trabalho.",
+        "Em meu trabalho, sinto-me cheio de energia.",
+        "Eu entendo como meu trabalho contribui para o alcance das metas e objetivos da empresa.",
+        "Eu sinto que faço a diferença no meu time.",
+        "Eu sinto que, se eu cometer um erro, isso não se voltará contra mim.",
+        "Sinto que a cultura da UCJ está alinhada com as minhas crenças e valores.",
+        "A UCJ possui lideranças com as quais me identifico.",
+        "Sinto que a minha liderança direta se preocupa comigo como pessoa.",
+        "Sinto que a minha liderança direta constrói um ambiente positivo, ou seja, temos uma comunicação aberta e transparente, falamos de dificuldades e temos uma cultura de feedbacks constantes.",
+        "Eu estou satisfeito em relação ao tempo que dedico para o meu trabalho, meus estudos, minha família, meus amigos e minha saúde.",
+        "Eu sinto que a minha liderança direta encoraja e apoia meu desenvolvimento.",
+        "Sinto que tenho voz ativa opinar e fazer acontecer as transformações em que acredito.",
+        "Sinto que sou comunicado (a) das informações relevantes para o meu trabalho e sobre assuntos gerais relevantes na empresa.",
+        "Sinto que o ambiente em que trabalho colabora para a minha produtividade.",
+        "O que motivou sua resposta.",
+        "NPS produtos", "Comente sobre o que motivou essa resposta.",
+        "O que podemos fazer para melhorar enquanto empresa?", "Qual(is)?"
+    ]
+
+
+    # Aplicando os cabeçalhos e seus estilos
+    def setup_headers(ws, headers):
+        for col_num, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_num, value=header)
+            cell.font = Font(name='Arial', size=11, bold=True)
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border = Border(left=Side(style='thin'), right=Side(style='thin'),
+                             top=Side(style='thin'), bottom=Side(style='thin'))
+
+    ws.auto_filter.ref = f"A1:{get_column_letter(len(headers))}1"
+
+
     # Ajuste das colunas conforme anteriormente
-        for col in ws.columns:
-            max_length = max((len(str(cell.value)) if cell.value is not None else 0 for cell in col), default=0)
-            adjusted_width = max_length + 2
-            ws.column_dimensions[get_column_letter(col[0].column)].width = adjusted_width
+    for col in ws.columns:
+        max_length = max((len(str(cell.value)) if cell.value is not None else 0 for cell in col), default=0)
+        adjusted_width = max_length + 2
+        ws.column_dimensions[get_column_letter(col[0].column)].width = adjusted_width
     
     standard_width = 8.43
     for col in range(5, 20):  # Colunas E(5) até S(19)
@@ -190,14 +229,73 @@ def update_excel_e_nps(wb, data, sheet_name):
     t_header_value = ws.cell(row=1, column=column_t_index).value
     ws.column_dimensions[get_column_letter(column_t_index)].width = len(t_header_value) + 2
 
+    # Configurando a primeira linha com cabeçalhos
+    setup_headers(ws, headers)
+
+    # Processa as fases e atualiza a planilha
+    row_num = 2
+    ws, row_num = process_phases_nps(all_phases, headers, ws, row_num)
+
 
     print(f"Dados atualizados na aba '{sheet_name}'.")
 
-def update_excel_matriz_cursos(wb, data, sheet_name):
+
+# Função para limpar os valores de campo de lista
+def clean_value(value):
+    if isinstance(value, str) and value.startswith("[\"") and value.endswith("\"]"):
+        # Assume que há apenas um item na lista e remove os caracteres indesejados
+        return value[2:-2]  # Remove os dois primeiros e os dois últimos caracteres
+    return value
+
+
+# Função para processar os cartões da Matriz de Cursos
+def process_card(card, headers):
+        field_values = {header: "" for header in headers}
+        field_values["Membro"] = card["title"]
+
+        for field in card['fields']:
+            if field['name'] in headers:
+                value = field['value']
+                try:
+                    field_values[field['name']] = int(value)
+                except ValueError:
+                    try:
+                        field_values[field['name']] = float(value.replace(',', '.'))
+                    except ValueError:
+                        field_values[field['name']] = clean_value(field['value'])
+
+        return field_values
+
+# Função para processar as fases da Matriz de Cursos
+def process_phases_matriz(ws, headers, all_phases, row_num):
+        # Estilo de fonte para o restante das células
+        normal_font = Font(name='Arial', size=10, bold=False)
+        alignment_bottom = Alignment(vertical='bottom')
+        
+        
+        for phase in all_phases:    
+            if isinstance(phase, dict) and phase.get('name') in ["In-Company", "Individual"]:  # Assegura que 'phase' é um dicionário
+                for card_edge in phase['cards']['edges']:
+                    card = card_edge['node']
+                    field_values = process_card(card, headers)
+
+                    for col_num, header in enumerate(headers, 1):
+                        cell = ws.cell(row=row_num, column=col_num, value=field_values[header])
+                        cell.font = normal_font  # Certifique-se de que 'normal_font' está definido
+                        cell.alignment = alignment_bottom  # Certifique-se de que 'alignment_bottom' está definido
+
+                    row_num += 1
+
+
+        return ws, row_num
+
+#Função para atualizar a aba da Matriz de Cursos
+def update_excel_matriz_cursos(wb, all_phases, sheet_name):
     if sheet_name in wb.sheetnames:
         ws = wb[sheet_name]
     else:
         ws = wb.create_sheet(title=sheet_name)
+
 
     # Lista de títulos para os cabeçalhos conforme especificado
     headers = [
@@ -219,45 +317,18 @@ def update_excel_matriz_cursos(wb, data, sheet_name):
 
     row_num = 2
 
-    # Estilo de fonte para o restante das células
-    normal_font = Font(name='Arial', size=10, bold=False)
-    alignment_bottom = Alignment(vertical='bottom')
+    
+    result = process_phases_matriz(ws, headers, all_phases, row_num)
+    ws = result[0]
+    row_num = result[1]
 
-    for phase in data['data']['pipe']['phases']:
-        # Checa se a fase é 'In-Company'
-        if phase['name'] == "In-Company":
-            for card_edge in phase['cards']['edges']:
-                card = card_edge['node']
-
-                # Inicializa todos os campos com string vazia
-                field_values = {header: "" for header in headers}
-
-                # Atribui o título do card diretamente à coluna 'Membro'
-                field_values["Membro"] = card["title"]
-
-                # Preenche os outros campos com os valores correspondentes
-                for field in card['fields']:
-                    if field['name'] in headers:
-                        try: 
-                            # Se o valor for numérico, converte para o tipo numérico correspondente
-                            field_values[field['name']] = int(field['value']) if field['value'].isdigit() else float(field['value'])
-                        except ValueError:
-                            # Caso contrário, limpa e atribui o valor como string
-                            field_values[field['name']] = clean_value(field['value'])
-
-                # Preenche a linha com os valores coletados
-                for col_num, header in enumerate(headers, 1):
-                    cell = ws.cell(row=row_num, column=col_num, value=field_values[header])
-                    cell.font = normal_font
-                    cell.alignment = alignment_bottom
-
-                row_num += 1
 
     # Ajuste das colunas conforme anteriormente
-    for col in ws.columns:
-        max_length = max((len(str(cell.value)) if cell.value is not None else 0 for cell in col), default=0)
+    for col in ws.iter_cols(min_row=1, max_row=ws.max_row, min_col=1, max_col=len(headers)):
+        max_length = max(len(str(cell.value)) if cell.value else 0 for cell in col)
         adjusted_width = max_length + 2
-        ws.column_dimensions[get_column_letter(col[0].column)].width = adjusted_width
+        col_letter = get_column_letter(col[0].column)
+        ws.column_dimensions[col_letter].width = adjusted_width
 
     print(f"Dados atualizados na aba '{sheet_name}'.")
     
@@ -274,28 +345,22 @@ def main():
 
     for pipe_name, (filename, sheet_name) in PIPE_TO_FILE.items():
         print(f"Iniciando a consulta dos dados do Pipefy para: {pipe_name}")
-        data = fetch_pipefy_data(PIPE_IDS[pipe_name])
+        all_phases = fetch_all_cards(PIPE_IDS[pipe_name])
         
-        if 'errors' in data:
-            print(f"Erro ao fazer a consulta GraphQL para {pipe_name}:")
-            for error in data['errors']:
-                print(error['message'])
-        else:
-            print(f"Dados do Pipefy obtidos com sucesso para {pipe_name}.")
-            try:
-                wb = load_workbook(filename)
-                print(f"Arquivo '{filename}' carregado com sucesso.")
-            except FileNotFoundError:
-                wb = Workbook()
-                print(f"Arquivo '{filename}' não encontrado, criando novo arquivo.")
-                wb.remove(wb.active)  # Remover a aba padrão vazia
+        try:
+            wb = load_workbook(filename)
+            print(f"Arquivo '{filename}' carregado com sucesso.")
+        except FileNotFoundError:
+            wb = Workbook()
+            print(f"Arquivo '{filename}' não encontrado, criando novo arquivo.")
+            wb.remove(wb.active)  # Remover a aba padrão vazia
 
-            # Chamada da função de atualização específica
-            update_function = update_functions[pipe_name]
-            update_function(wb, data, sheet_name)
+        # Chamada da função de atualização específica, agora passando todas as fases paginadas
+        update_function = update_functions[pipe_name]
+        update_function(wb, all_phases, sheet_name)
 
-            wb.save(filename)
-            print(f'Arquivo "{filename}" salvo com sucesso com a aba atualizada.')
+        wb.save(filename)
+        print(f'Arquivo "{filename}" salvo com sucesso com a aba atualizada.')
 
 if __name__ == "__main__":
     main()
