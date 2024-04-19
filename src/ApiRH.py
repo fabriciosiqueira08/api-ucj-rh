@@ -253,11 +253,14 @@ def process_card(card, headers):
 
         for field in card['fields']:
             if field['name'] in headers:
-                try: 
-                    field_values[field['name']] = int(field['value']) if field['value'].isdigit() else float(field['value'])
+                value = field['value']
+                try:
+                    field_values[field['name']] = int(value)
                 except ValueError:
-                    # Caso contrário, limpa e atribui o valor como string
-                    field_values[field['name']] = clean_value(field['value'])
+                    try:
+                        field_values[field['name']] = float(value.replace(',', '.'))
+                    except ValueError:
+                        field_values[field['name']] = clean_value(field['value'])
 
         return field_values
 
