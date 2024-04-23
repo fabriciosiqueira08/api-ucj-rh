@@ -10,15 +10,15 @@ PIPEFY_API_TOKEN = os.getenv('PIPEFY_API_TOKEN')
 PIPEFY_GRAPHQL_ENDPOINT = os.getenv('PIPEFY_GRAPHQL_ENDPOINT')
 PIPE_TO_FILE = {
     'RH - E-NPS': ('[DRH] ENPS.xlsx', 'Banco de dados'),
-    'RH - Matriz de Cursos': ('[DRH] Matriz de Cursos.xlsx', 'Banco de dados')
-    #'RH - Painel Controle Membros': ('[DRH] Painel Controle Membros.xlsx', 'Banco de dados'),
+    'RH - Matriz de Cursos': ('[DRH] Matriz de Cursos.xlsx', 'Banco de dados'),
+    'RH - Painel Controle Membros': ('[UCJ] Relação de Membros - 2024.xlsx', 'Banco de dados')
 }
 
 # IDs dos Pipes 
 PIPE_IDS = {
     'RH - E-NPS': '301823995',
-    'RH - Matriz de Cursos': '301682389'
-    #'RH - Painel Controle Membros': '301654957'
+    'RH - Matriz de Cursos': '301682389',
+    'RH - Painel Controle Membros': '301654957'
 }
 
 # Função para consultar os dados do Pipefy
@@ -89,6 +89,13 @@ def fetch_all_cards(pipe_id):
 
     return all_phases
 
+# Função para limpar os valores de campo de lista
+def clean_value(value):
+    if isinstance(value, str) and value.startswith("[\"") and value.endswith("\"]"):
+        # Assume que há apenas um item na lista e remove os caracteres indesejados
+        return value[2:-2]  # Remove os dois primeiros e os dois últimos caracteres
+    return value
+
 
 def process_phases_nps(all_phases, headers, ws, row_num):
     # Estilo de fonte para o restante das células
@@ -157,7 +164,6 @@ def process_phases_nps(all_phases, headers, ws, row_num):
                 row_num += 1 
 
     return ws, row_num
-
 
 # Função para criar/atualizar o arquivo do Excel com os dados do Pipefy
 def update_excel_e_nps(wb, all_phases, sheet_name):
@@ -238,14 +244,6 @@ def update_excel_e_nps(wb, all_phases, sheet_name):
 
 
     print(f"Dados atualizados na aba '{sheet_name}'.")
-
-
-# Função para limpar os valores de campo de lista
-def clean_value(value):
-    if isinstance(value, str) and value.startswith("[\"") and value.endswith("\"]"):
-        # Assume que há apenas um item na lista e remove os caracteres indesejados
-        return value[2:-2]  # Remove os dois primeiros e os dois últimos caracteres
-    return value
 
 
 # Função para processar os cartões da Matriz de Cursos
@@ -331,8 +329,83 @@ def update_excel_matriz_cursos(wb, all_phases, sheet_name):
         ws.column_dimensions[col_letter].width = adjusted_width
 
     print(f"Dados atualizados na aba '{sheet_name}'.")
-    
 
+
+def process_card_membros(card, headers):
+    # Inicializa um dicionário com todos os headers definidos para strings vazias.
+    field_values = {header: "" for header in headers}
+
+    # Atribui o título do node ao campo "Membro" especificamente.
+    field_values["Membro"] = card["title"]
+
+    # Processa os outros campos que podem estar presentes em 'fields'.
+    for field in card['fields']:
+        field_name = field['name']
+        if field_name in headers and field_name != "Membro":
+            value = field['value']
+            if value is None:
+                field_values[field_name] = ""
+            else:
+                try:
+                    field_values[field_name] = int(value)
+                except ValueError:
+                    try:
+                        field_values[field_name] = float(value.replace(',', '.'))
+                    except ValueError:
+                        field_values[field_name] = clean_value(value)
+
+    return field_values
+
+def process_phases_membros(ws, headers, all_phases, row_num):
+    # Estilo de fonte para o restante das células
+    normal_font = Font(name='Arial', size=10, bold=False)
+    alignment_bottom = Alignment(vertical='bottom')
+
+    for phase in all_phases:
+        if isinstance(phase, dict) and phase.get('name') == "Caixa de entrada":  # Ajuste para igualdade se apenas uma fase é relevante
+            for card_edge in phase['cards']['edges']:
+                card = card_edge['node']
+                field_values = process_card_membros(card, headers)
+
+                for col_num, header in enumerate(headers, 1):
+                    cell = ws.cell(row=row_num, column=col_num, value=field_values[header])
+                    cell.font = normal_font
+                    cell.alignment = alignment_bottom
+
+                row_num += 1
+
+    return ws, row_num
+
+def update_excel_painel_controle_membros(wb, all_phases, sheet_name):
+    if sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+    else:
+        ws = wb.create_sheet(title=sheet_name)
+
+    headers = ["Membro", "Status Trainee", "Data de Entrada (Trainee)", "Motivo de Saída (Trainee)", "Data de Entrada (Consultor)", "Data Saída", ]
+
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num, value=header)
+        cell.font = Font(name='Arial', size=10, bold=True)
+        cell.alignment = Alignment(vertical='bottom')
+        cell.border = Border(left=Side(style='thin'), right=Side(style='thin'),
+                             top=Side(style='thin'), bottom=Side(style='thin'))
+
+    row_num = 2
+
+     
+    result = process_phases_membros(ws, headers, all_phases, row_num)
+    ws = result[0]
+    row_num = result[1]
+
+    # Ajuste das colunas conforme anteriormente
+    for col in ws.iter_cols(min_row=1, max_row=ws.max_row, min_col=1, max_col=len(headers)):
+        max_length = max(len(str(cell.value)) if cell.value else 0 for cell in col)
+        adjusted_width = max_length + 2
+        col_letter = get_column_letter(col[0].column)
+        ws.column_dimensions[col_letter].width = adjusted_width
+
+    print(f"Dados atualizados na aba '{sheet_name}'.")
 
 # Função principal para executar o script
 def main():
@@ -340,7 +413,7 @@ def main():
     update_functions = {
         'RH - E-NPS': update_excel_e_nps,
         'RH - Matriz de Cursos': update_excel_matriz_cursos,
-        #'RH - Painel Controle Membros': update_excel_painel_controle_membros,
+        'RH - Painel Controle Membros': update_excel_painel_controle_membros,
     }
 
     for pipe_name, (filename, sheet_name) in PIPE_TO_FILE.items():
