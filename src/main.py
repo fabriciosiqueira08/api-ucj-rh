@@ -2,6 +2,7 @@ from FetchAllCards import fetch_all_cards
 from UpdateExcelEnps import update_excel_e_nps
 from UpdateExcelMatrizCursos import update_excel_matriz_cursos
 from UpdateExcelPainelControleMembros import update_excel_painel_controle_membros
+from UpdateExcelPesquisaClima import update_excel_pesquisa_clima
 from openpyxl import Workbook, load_workbook
 from Definitions import PIPE_IDS, PIPE_TO_FILE
 
@@ -12,6 +13,7 @@ def main():
         'RH - E-NPS': update_excel_e_nps,
         'RH - Matriz de Cursos': update_excel_matriz_cursos,
         'RH - Painel Controle Membros': update_excel_painel_controle_membros,
+        'RH - Pesquisa de Clima': update_excel_pesquisa_clima
     }
 
     for pipe_name, (filename, sheet_name) in PIPE_TO_FILE.items():
