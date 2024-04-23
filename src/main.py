@@ -1,58 +1,14 @@
-import requests, os, ast
-from dotenv import load_dotenv
+from FetchPipefyData import fetch_pipefy_data
+from Definitions import PIPE_IDS, PIPE_TO_FILE
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
-
-# Definições
-load_dotenv()
-PIPEFY_API_TOKEN = os.getenv('PIPEFY_API_TOKEN')
-PIPEFY_GRAPHQL_ENDPOINT = os.getenv('PIPEFY_GRAPHQL_ENDPOINT')
-PIPE_TO_FILE = ast.literal_eval(os.getenv('PIPE_TO_FILE'))
-
-# IDs dos Pipes 
-PIPE_IDS = ast.literal_eval(os.getenv('PIPE_IDS'))
-
-# Função para consultar os dados do Pipefy
-def fetch_pipefy_data(pipe_id, cursor=None, page_size=30,):
-    # Cursor clause to handle pagination
-    cursor_clause = f', after: "{cursor}"' if cursor else ""
-    
-    query = f"""
-    query {{
-      pipe(id: "{pipe_id}") {{
-        phases {{
-          name
-          cards(first: {page_size}{cursor_clause}) {{
-            edges {{
-              node {{
-                title
-                fields {{
-                  name
-                  value
-                }}
-              }}
-            }}
-            pageInfo {{
-              hasNextPage
-              endCursor
-            }}
-          }}
-        }}
-      }}
-    }}
-    """
-
-    headers = {'Authorization': f'Bearer {PIPEFY_API_TOKEN}'}
-    response = requests.post(PIPEFY_GRAPHQL_ENDPOINT, json={'query': query}, headers=headers)
-    data = response.json()
-    return data
 
 
 def fetch_all_cards(pipe_id):
     all_phases = []
     initial_data = fetch_pipefy_data(pipe_id)  # Esta função precisa tratar corretamente o cursor inicial como None
-
+    
     for phase_data in initial_data['data']['pipe']['phases']:
 
         if phase_data['name'] == "Histórico":
