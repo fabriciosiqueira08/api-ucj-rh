@@ -1,4 +1,4 @@
-import requests, os
+import requests, os, ast
 from dotenv import load_dotenv
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, Alignment, Border, Side
@@ -8,18 +8,10 @@ from openpyxl.utils import get_column_letter
 load_dotenv()
 PIPEFY_API_TOKEN = os.getenv('PIPEFY_API_TOKEN')
 PIPEFY_GRAPHQL_ENDPOINT = os.getenv('PIPEFY_GRAPHQL_ENDPOINT')
-PIPE_TO_FILE = {
-    'RH - E-NPS': ('[DRH] ENPS.xlsx', 'Banco de dados'),
-    'RH - Matriz de Cursos': ('[DRH] Matriz de Cursos.xlsx', 'Banco de dados'),
-    'RH - Painel Controle Membros': ('[UCJ] Relação de Membros - 2024.xlsx', 'Banco de dados')
-}
+PIPE_TO_FILE = ast.literal_eval(os.getenv('PIPE_TO_FILE'))
 
 # IDs dos Pipes 
-PIPE_IDS = {
-    'RH - E-NPS': '301823995',
-    'RH - Matriz de Cursos': '301682389',
-    'RH - Painel Controle Membros': '301654957'
-}
+PIPE_IDS = ast.literal_eval(os.getenv('PIPE_IDS'))
 
 # Função para consultar os dados do Pipefy
 def fetch_pipefy_data(pipe_id, cursor=None, page_size=30,):
