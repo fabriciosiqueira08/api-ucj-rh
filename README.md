@@ -19,5 +19,26 @@ Crie um arquivo `.env` na raiz do projeto e preencha com as seguintes variáveis
 ```plaintext
 PIPEFY_API_TOKEN='SeuTokenDeAPIAqui'
 DATABASE_URL='URLDoSeuBancoDeDadosAqui'
+PIPE_TO_FILE = "{
+    'NomeDoPipe': ('NomeDoArquivoExcel.xlsx', 'NomeDaAbaDaPlanilhaExcel'),
+}"
+PIPE_IDS = "{
+    'NomeDoPipe': 'IdDoPipe',
+}"
 ```
 
+## Bibliotecas
+
+É necessário instalar duas bibliotecas phyton antes de rodar o projeto.
+
+### Openpyxl
+
+```plaintext
+pip install openpyxl
+```
+
+### Requests
+
+```plaintext
+pip install requests
+```
