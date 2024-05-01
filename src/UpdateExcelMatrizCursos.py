@@ -1,6 +1,7 @@
 from openpyxl.styles import Font, Alignment, Border, Side
 from ProcessPhasesMatriz import process_phases_matriz
 from openpyxl.utils import get_column_letter
+from CleanNumeric import clean_numeric
 
 #Função para atualizar a aba da Matriz de Cursos
 def update_excel_matriz_cursos(wb, all_phases, sheet_name):
@@ -35,6 +36,11 @@ def update_excel_matriz_cursos(wb, all_phases, sheet_name):
     ws = result[0]
     row_num = result[1]
 
+    # Limpeza e formatação dos dados na coluna "Carga horária do curso"
+    for row in ws.iter_rows(min_row=2, max_col=4, max_row=ws.max_row, min_col=4):
+        for cell in row:
+            cleaned_value = clean_numeric(cell.value)
+            cell.value = cleaned_value if cleaned_value is not None else "Dados inválidos"
 
     # Ajuste das colunas conforme anteriormente
     for col in ws.iter_cols(min_row=1, max_row=ws.max_row, min_col=1, max_col=len(headers)):
