@@ -28,6 +28,5 @@ def fetch_all_cards(pipe_id):
 
         phase['cards']['edges'] = cards
         all_phases.append(phase)
-        print(f"Fase '{phase['name']}' processada com {len(cards)} cartões.")
 
     return all_phases
