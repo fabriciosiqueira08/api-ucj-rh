@@ -11,7 +11,7 @@ def update_excel_e_nps(wb, all_phases, sheet_name):
 
     # Lista de títulos para os cabeçalhos conforme especificado
     headers = [
-        "Período:", "NPS", "Grupo minoritário?", "Cargo:",
+        "Período:", "ANO:", "NPS", "Grupo minoritário?", "Cargo:",
         "Sinto-me envolvido com o trabalho que faço.",
         "Estou entusiasmado com meu trabalho.",
         "Em meu trabalho, sinto-me cheio de energia.",
@@ -44,7 +44,6 @@ def update_excel_e_nps(wb, all_phases, sheet_name):
 
     ws.auto_filter.ref = f"A1:{get_column_letter(len(headers))}1"
 
-
     # Ajuste das colunas conforme anteriormente
     for col in ws.columns:
         max_length = max((len(str(cell.value)) if cell.value is not None else 0 for cell in col), default=0)
@@ -52,10 +51,10 @@ def update_excel_e_nps(wb, all_phases, sheet_name):
         ws.column_dimensions[get_column_letter(col[0].column)].width = adjusted_width
     
     standard_width = 8.43
-    for col in range(5, 20):  # Colunas E(5) até S(19)
+    for col in range(6, 21):  # Colunas E(5) até S(19)
         ws.column_dimensions[get_column_letter(col)].width = standard_width
     
-    column_letter = get_column_letter(2)  # 'B' corresponde ao índice 2
+    column_letter = get_column_letter(3)  # 'C' corresponde ao índice 3
     desired_width = 9  # Você pode ajustar esse valor conforme necessário
 
     ws.column_dimensions[column_letter].width = desired_width
