@@ -7,9 +7,24 @@ from UpdateExcelPainelControleMembros import update_excel_painel_controle_membro
 from UpdateExcelPesquisaClima import update_excel_pesquisa_clima
 from openpyxl import Workbook, load_workbook
 from Definitions import PIPE_IDS, PIPE_TO_FILE
+import sys
+import threading
+
+class RedirectOutput:
+    def __init__(self, text_widget):
+        self.text_widget = text_widget
+
+    def write(self, message):
+        self.text_widget.insert(tk.END, message)
+        self.text_widget.see(tk.END)
+
+    def flush(self):
+        pass
 
 def update_excel_files():
-    # Obtém o caminho selecionado pelo usuário
+    progress_bar['value'] = 0
+    text_log.delete(1.0, tk.END)
+
     selected_dir = directory.get()
     if not selected_dir:
         messagebox.showwarning("Caminho não selecionado", "Por favor, selecione o caminho onde os arquivos estão localizados.")
@@ -49,6 +64,9 @@ def update_excel_files():
 
     messagebox.showinfo("Concluído", "Atualização concluída com sucesso!")
 
+def start_update_thread():
+    threading.Thread(target=update_excel_files).start()
+
 def select_directory():
     path = filedialog.askdirectory()
     if path:
@@ -56,7 +74,9 @@ def select_directory():
 
 if __name__ == "__main__":
     root = tk.Tk()
-    root.title("Atualizar Planilhas Excel")
+    root.title("Atualizar Planilhas de RH")
+
+    root.iconbitmap(r'C:\Users\brici\Documents\PROJETO UCJ\app.ico')
 
     directory = tk.StringVar()
 
@@ -67,6 +87,11 @@ if __name__ == "__main__":
     progress_bar = ttk.Progressbar(root, orient='horizontal', length=300, mode='determinate')
     progress_bar.pack(pady=10)
 
-    tk.Button(root, text="Atualizar Planilhas", command=update_excel_files).pack(pady=20)
+    tk.Button(root, text="Atualizar Planilhas", command=start_update_thread).pack(pady=20)
+
+    text_log = tk.Text(root, height=10, wrap='word', bg='white', fg='black')
+    text_log.pack(pady=10, padx=10, fill='both', expand=True)
+
+    sys.stdout = RedirectOutput(text_log)
 
     root.mainloop()
