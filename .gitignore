@@ -3,3 +3,7 @@ teste.py
 ConsultaAPI.py
 .env
 __pycache__/
+Output/
+setup.py
+*.iss
+build/
