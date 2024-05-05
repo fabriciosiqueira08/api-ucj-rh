@@ -13,7 +13,7 @@ def update_excel_matriz_cursos(wb, all_phases, sheet_name):
 
     # Lista de títulos para os cabeçalhos conforme especificado
     headers = [
-        "Data: ", "Membro", "Qual o tipo de curso?", "Cargo atual na empresa", "Carga horária do curso", "Ajudou a desenvolver minhas soft skills", 
+        "Criação: ", "Membro", "Qual o tipo de curso?", "Cargo atual na empresa", "Carga horária do curso", "Ajudou a desenvolver minhas soft skills", 
         "Contribuiu para o meu desenvolvimento pessoal", "Contribuiu para o meu desenvolvimento profissional",
         "Facilita meu trabalho dentro da empresa", "Fez com que meus resultados na UCJ fossem alavancados",
         "Me ajudou nas atividades que desenvolvo fora da UCJ", "Me ajudou nas atividades que desenvolvo na UCJ",

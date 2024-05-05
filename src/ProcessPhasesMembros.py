@@ -7,7 +7,7 @@ def process_phases_membros(ws, headers, all_phases, row_num):
     alignment_bottom = Alignment(vertical='bottom')
 
     for phase in all_phases:
-        if isinstance(phase, dict) and phase.get('name') == "Caixa de entrada":  # Ajuste para igualdade se apenas uma fase é relevante
+        if isinstance(phase, dict) and phase.get('name') == "Ativo":  # Ajuste para igualdade se apenas uma fase é relevante
             for card_edge in phase['cards']['edges']:
                 card = card_edge['node']
                 field_values = process_card_membros(card, headers)

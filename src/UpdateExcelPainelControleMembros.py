@@ -9,7 +9,7 @@ def update_excel_painel_controle_membros(wb, all_phases, sheet_name):
     else:
         ws = wb.create_sheet(title=sheet_name)
 
-    headers = ["Membro", "Status Trainee", "Data de Entrada (Trainee)", "Motivo de Saída (Trainee)", "Data de Entrada (Consultor)", "Data Saída", ]
+    headers = ["Membro", "Status Membro", "E-mail coorporativo", "Pertence a Grupo Minoritário", "Grupo Minoritário", "Data de entrada", "Seleção de lista" ]
 
     for col_num, header in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col_num, value=header)
@@ -24,6 +24,13 @@ def update_excel_painel_controle_membros(wb, all_phases, sheet_name):
     result = process_phases_membros(ws, headers, all_phases, row_num)
     ws = result[0]
     row_num = result[1]
+
+    minor_group_col_idx = headers.index("Grupo Minoritário") + 1
+    for row in range(2, row_num):
+        cell = ws.cell(row=row, column=minor_group_col_idx)
+        cell_value = str(cell.value) if cell.value else ""
+        # Remove double quotes from the value
+        cell.value = cell_value.replace('"', '')
 
     # Ajuste das colunas conforme anteriormente
     for col in ws.iter_cols(min_row=1, max_row=ws.max_row, min_col=1, max_col=len(headers)):
