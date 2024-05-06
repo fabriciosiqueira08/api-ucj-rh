@@ -73,10 +73,9 @@ def select_directory():
         directory.set(path)
 
 if __name__ == "__main__":
+    
     root = tk.Tk()
     root.title("Atualizar Planilhas de RH")
-
-    root.iconbitmap(r'C:\Users\brici\Documents\PROJETO UCJ\app.ico')
 
     directory = tk.StringVar()
 
