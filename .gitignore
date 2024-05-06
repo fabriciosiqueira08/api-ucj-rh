@@ -7,3 +7,4 @@ Output/
 setup.py
 *.iss
 build/
+*.ico

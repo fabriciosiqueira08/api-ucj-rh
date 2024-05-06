@@ -16,6 +16,7 @@ def fetch_pipefy_data(pipe_id, cursor=None, page_size=30,):
             edges {{
               node {{
                 title
+                createdAt
                 fields {{
                   name
                   value

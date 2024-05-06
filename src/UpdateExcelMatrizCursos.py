@@ -13,7 +13,7 @@ def update_excel_matriz_cursos(wb, all_phases, sheet_name):
 
     # Lista de títulos para os cabeçalhos conforme especificado
     headers = [
-        "Membro", "Qual o tipo de curso?", "Cargo atual na empresa", "Carga horária do curso", "Ajudou a desenvolver minhas soft skills", 
+        "Criação: ", "Membro", "Qual o tipo de curso?", "Cargo atual na empresa", "Carga horária do curso", "Ajudou a desenvolver minhas soft skills", 
         "Contribuiu para o meu desenvolvimento pessoal", "Contribuiu para o meu desenvolvimento profissional",
         "Facilita meu trabalho dentro da empresa", "Fez com que meus resultados na UCJ fossem alavancados",
         "Me ajudou nas atividades que desenvolvo fora da UCJ", "Me ajudou nas atividades que desenvolvo na UCJ",
@@ -36,8 +36,8 @@ def update_excel_matriz_cursos(wb, all_phases, sheet_name):
     ws = result[0]
     row_num = result[1]
 
-    # Limpeza e formatação dos dados na coluna "Carga horária do curso"
-    for row in ws.iter_rows(min_row=2, max_col=4, max_row=ws.max_row, min_col=4):
+# Limpeza e formatação dos dados na coluna "Carga horária do curso"
+    for row in ws.iter_rows(min_row=2, max_col=5, max_row=ws.max_row, min_col=5):
         for cell in row:
             cleaned_value = clean_numeric(cell.value)
             cell.value = cleaned_value if cleaned_value is not None else "Dados inválidos"

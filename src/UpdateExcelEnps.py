@@ -11,7 +11,7 @@ def update_excel_e_nps(wb, all_phases, sheet_name):
 
     # Lista de títulos para os cabeçalhos conforme especificado
     headers = [
-        "Período:", "ANO:", "NPS", "Grupo minoritário?", "Cargo:",
+        "Período:", "NPS", "Grupo minoritário?", "Cargo:",
         "Sinto-me envolvido com o trabalho que faço.",
         "Estou entusiasmado com meu trabalho.",
         "Em meu trabalho, sinto-me cheio de energia.",
@@ -29,7 +29,7 @@ def update_excel_e_nps(wb, all_phases, sheet_name):
         "Sinto que o ambiente em que trabalho colabora para a minha produtividade.",
         "O que motivou sua resposta.",
         "NPS produtos", "Comente sobre o que motivou essa resposta.",
-        "O que podemos fazer para melhorar enquanto empresa?", "Qual(is)?"
+        "O que podemos fazer para melhorar enquanto empresa?", "Qual(is)?", "ANO:"
     ]
 
 
