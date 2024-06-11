@@ -1,7 +1,14 @@
 from ProcessCardMembros import process_card_membros
 from openpyxl.styles import Font, Alignment
 
+def clear_worksheet(ws):
+    # Método para limpar todas as linhas e colunas da planilha
+    for row in ws.iter_rows(min_row=2):  # Começa na segunda linha
+        for cell in row:
+            cell.value = None
+
 def process_phases_membros(ws, headers, all_phases, row_num):
+    clear_worksheet(ws)
     # Estilo de fonte para o restante das células
     normal_font = Font(name='Arial', size=10, bold=False)
     alignment_bottom = Alignment(vertical='bottom')

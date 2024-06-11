@@ -2,9 +2,15 @@ from openpyxl.styles import Font, Alignment
 from ProcessCardClima import process_card_clima
 from datetime import datetime
 
+def clear_worksheet(ws):
+    # Método para limpar todas as linhas e colunas da planilha
+    for row in ws.iter_rows(min_row=2):  # Começa na segunda linha
+        for cell in row:
+            cell.value = None
 
 def process_phases_clima(ws, headers, all_phases, row_num):
 
+    clear_worksheet(ws)
     # Estilo de fonte para o restante das células
     normal_font = Font(name='Arial', size=10, bold=False)
     alignment_bottom = Alignment(vertical='bottom')
@@ -31,8 +37,13 @@ def process_phases_clima(ws, headers, all_phases, row_num):
 
 
                 # Ajuste a escrita dos outros campos
-                for col_num, header in enumerate(headers[1:], 2):  # Comece da segunda coluna
-                    cell = ws.cell(row=row_num, column=col_num, value=field_values.get(header, ""))
+                for col_num, header in enumerate(headers[1:], 2):
+                    if header == "Membro":
+                        cell_value = card['title']  # Obtém o título do cartão diretamente
+                    else:
+                        cell_value = field_values.get(header, "")
+                    
+                    cell = ws.cell(row=row_num, column=col_num, value=cell_value)
                     cell.font = normal_font
                     cell.alignment = alignment_bottom
 

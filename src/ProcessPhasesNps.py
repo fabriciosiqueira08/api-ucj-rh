@@ -1,7 +1,14 @@
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
 
+def clear_worksheet(ws):
+    # Método para limpar todas as linhas e colunas da planilha
+    for row in ws.iter_rows(min_row=2):  # Começa na segunda linha
+        for cell in row:
+            cell.value = None
+
 def process_phases_nps(all_phases, headers, ws, row_num):
+    clear_worksheet(ws)
     # Estilo de fonte para o restante das células
     normal_font = Font(name='Arial', size=11, bold=False)
     alignment_bottom = Alignment(vertical='bottom')

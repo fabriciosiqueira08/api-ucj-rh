@@ -6,8 +6,6 @@ def fetch_all_cards(pipe_id):
     
     for phase_data in initial_data['data']['pipe']['phases']:
 
-        if phase_data['name'] == "Histórico":
-            continue  # Pula a fase "Histórico"
 
         phase = phase_data
         cards = phase_data['cards']['edges']
@@ -28,5 +26,6 @@ def fetch_all_cards(pipe_id):
 
         phase['cards']['edges'] = cards
         all_phases.append(phase)
-
+        print(f"Fase '{phase['name']}' processada com {len(cards)} cartões.")
+        
     return all_phases

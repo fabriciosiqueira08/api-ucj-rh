@@ -2,12 +2,19 @@ from openpyxl.styles import Font, Alignment
 from ProcessCard import process_card
 from datetime import datetime
 
+def clear_worksheet(ws):
+    # Método para limpar todas as linhas e colunas da planilha
+    for row in ws.iter_rows(min_row=2):  # Começa na segunda linha
+        for cell in row:
+            cell.value = None
+
 def process_phases_matriz(ws, headers, all_phases, row_num):
+    clear_worksheet(ws)
     normal_font = Font(name='Arial', size=10, bold=False)
     alignment_bottom = Alignment(vertical='bottom')
 
     for phase in all_phases:
-        if isinstance(phase, dict) and phase.get('name') in ["In-Company", "Individual"]:
+        if isinstance(phase, dict) and phase.get('name') in ["In-Company", "Individual", "Histórico"]:
             for card_edge in phase['cards']['edges']:
                 card = card_edge['node']
                 field_values = process_card(card, headers)
@@ -28,7 +35,11 @@ def process_phases_matriz(ws, headers, all_phases, row_num):
 
                 # Preenche as outras colunas
                 for col_num, header in enumerate(headers[1:], 2):
-                    cell_value = field_values.get(header, "")
+                    if header == "Membro":
+                        cell_value = card['title']  # Obtém o título do cartão diretamente
+                    else:
+                        cell_value = field_values.get(header, "")
+                    
                     cell = ws.cell(row=row_num, column=col_num, value=cell_value)
                     cell.font = normal_font
                     cell.alignment = alignment_bottom
